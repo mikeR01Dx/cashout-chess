@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Users, Plus, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
 import { GameRoom, Player } from '@/types/game';
 
 interface GameLobbyProps {
@@ -42,7 +42,7 @@ export default function GameLobby({ onRoomCreated, onRoomJoined }: GameLobbyProp
       } else {
         setError(result.error || 'Failed to create room');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to server');
     } finally {
       setIsCreating(false);
@@ -77,7 +77,7 @@ export default function GameLobby({ onRoomCreated, onRoomJoined }: GameLobbyProp
       } else {
         setError(result.error || 'Failed to join room');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to server');
     } finally {
       setIsJoining(false);

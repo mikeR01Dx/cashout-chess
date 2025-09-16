@@ -7,7 +7,7 @@ import { Crown, Shield, Sword, Zap, Star, Circle } from 'lucide-react';
 interface ChessBoardProps {
   room: GameRoom;
   currentPlayer: Player | null;
-  onMoveMade: (gameState: any, currentPlayer: 'white' | 'black') => void;
+  onMoveMade: (gameState: GameRoom['gameState'], currentPlayer: 'white' | 'black') => void;
 }
 
 const pieceIcons = {

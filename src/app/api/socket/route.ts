@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface GameState {
+  board: (Piece | null)[][];
+  capturedPieces: {
+    white: Piece[];
+    black: Piece[];
+  };
+  lastMove?: {
+    from: string;
+    to: string;
+    piece: Piece;
+  };
+}
+
+interface Piece {
+  type: 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
+  color: 'white' | 'black';
+  hasMoved?: boolean;
+}
+
+interface Room {
+  id: string;
+  players: Player[];
+  gameState: GameState;
+  currentPlayer: 'white' | 'black';
+  status: 'waiting' | 'playing' | 'finished';
+  createdAt: number;
+}
+
+interface Player {
+  id: string;
+  name: string;
+  color: 'white' | 'black';
+}
+
 // Simple in-memory storage for demo purposes
 // In production, you'd use a database like Redis or MongoDB
-const rooms = new Map();
+const rooms = new Map<string, Room>();
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   return NextResponse.json({ 
     message: 'Chess API is running',
     rooms: Array.from(rooms.keys())
@@ -18,16 +52,16 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case 'create-room':
         const roomId = Math.random().toString(36).substr(2, 9);
-        const room = {
+        const room: Room = {
           id: roomId,
           players: [{
             id: data.playerId || Math.random().toString(36).substr(2, 9),
             name: data.playerName,
-            color: 'white'
+            color: 'white' as const
           }],
           gameState: initializeGameState(),
-          currentPlayer: 'white',
-          status: 'waiting',
+          currentPlayer: 'white' as const,
+          status: 'waiting' as const,
           createdAt: Date.now()
         };
         rooms.set(roomId, room);
@@ -42,13 +76,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ success: false, error: 'Room is full' });
         }
         
-        const newPlayer = {
+        const newPlayer: Player = {
           id: data.playerId || Math.random().toString(36).substr(2, 9),
           name: data.playerName,
-          color: 'black'
+          color: 'black' as const
         };
         existingRoom.players.push(newPlayer);
-        existingRoom.status = 'playing';
+        existingRoom.status = 'playing' as const;
         rooms.set(data.roomId, existingRoom);
         return NextResponse.json({ success: true, room: existingRoom });
 
@@ -85,7 +119,7 @@ export async function POST(req: NextRequest) {
       default:
         return NextResponse.json({ success: false, error: 'Invalid action' });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Server error' });
   }
 }
@@ -113,7 +147,7 @@ function initializeGameState() {
   };
 }
 
-function validateMove(gameState: any, from: string, to: string, playerColor: string): { valid: boolean; error?: string } {
+function validateMove(gameState: GameState, from: string, to: string, playerColor: string): { valid: boolean; error?: string } {
   const fromPos = parsePosition(from);
   const toPos = parsePosition(to);
   
@@ -129,7 +163,7 @@ function validateMove(gameState: any, from: string, to: string, playerColor: str
   return { valid: true };
 }
 
-function updateGameState(gameState: any, from: string, to: string): void {
+function updateGameState(gameState: GameState, from: string, to: string): void {
   const fromPos = parsePosition(from);
   const toPos = parsePosition(to);
   
