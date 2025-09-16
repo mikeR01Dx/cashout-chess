@@ -33,7 +33,7 @@ export default function Home() {
     setCurrentPlayer(player);
   };
 
-  const handleMoveMade = (gameState: any, currentPlayer: 'white' | 'black') => {
+  const handleMoveMade = (gameState: GameRoom['gameState'], currentPlayer: 'white' | 'black') => {
     if (currentRoom) {
       setCurrentRoom(prev => prev ? { ...prev, gameState, currentPlayer } : null);
     }

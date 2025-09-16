@@ -113,7 +113,7 @@ function initializeGameState() {
   };
 }
 
-function validateMove(gameState, from, to, playerColor) {
+function validateMove(gameState: any, from: string, to: string, playerColor: string): { valid: boolean; error?: string } {
   const fromPos = parsePosition(from);
   const toPos = parsePosition(to);
   
@@ -129,7 +129,7 @@ function validateMove(gameState, from, to, playerColor) {
   return { valid: true };
 }
 
-function updateGameState(gameState, from, to) {
+function updateGameState(gameState: any, from: string, to: string): void {
   const fromPos = parsePosition(from);
   const toPos = parsePosition(to);
   
@@ -148,7 +148,7 @@ function updateGameState(gameState, from, to) {
   }
 }
 
-function parsePosition(pos) {
+function parsePosition(pos: string): { row: number; col: number } | null {
   if (pos.length !== 2) return null;
   const col = pos.charCodeAt(0) - 'a'.charCodeAt(0);
   const row = 8 - parseInt(pos[1]);
