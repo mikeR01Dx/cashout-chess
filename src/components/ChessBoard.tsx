@@ -1,14 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Socket } from 'socket.io-client';
+import { useState, useEffect } from 'react';
 import { GameRoom, Player, Piece } from '@/types/game';
 import { Crown, Shield, Sword, Zap, Star, Circle } from 'lucide-react';
 
 interface ChessBoardProps {
-  socket: Socket | null;
   room: GameRoom;
   currentPlayer: Player | null;
+  onMoveMade: (gameState: any, currentPlayer: 'white' | 'black') => void;
 }
 
 const pieceIcons = {
@@ -30,18 +29,46 @@ const pieceIcons = {
   }
 };
 
-export default function ChessBoard({ socket, room, currentPlayer }: ChessBoardProps) {
+export default function ChessBoard({ room, currentPlayer, onMoveMade }: ChessBoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [possibleMoves, setPossibleMoves] = useState<string[]>([]);
+  const [gameState, setGameState] = useState(room.gameState);
 
   const isMyTurn = currentPlayer?.color === room.currentPlayer;
   const opponent = room.players.find(p => p.id !== currentPlayer?.id);
 
-  const handleSquareClick = (position: string) => {
-    if (!socket || !isMyTurn) return;
+  // Poll for game updates
+  useEffect(() => {
+    const pollGameState = async () => {
+      try {
+        const response = await fetch('/api/socket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'get-room',
+            data: { roomId: room.id }
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success && result.room) {
+          setGameState(result.room.gameState);
+          onMoveMade(result.room.gameState, result.room.currentPlayer);
+        }
+      } catch (err) {
+        console.error('Failed to poll game state:', err);
+      }
+    };
+
+    const interval = setInterval(pollGameState, 2000); // Poll every 2 seconds
+    return () => clearInterval(interval);
+  }, [room.id, onMoveMade]);
+
+  const handleSquareClick = async (position: string) => {
+    if (!isMyTurn) return;
 
     const [col, row] = position.split('');
-    const piece = room.gameState.board[8 - parseInt(row)][col.charCodeAt(0) - 'a'.charCodeAt(0)];
+    const piece = gameState.board[8 - parseInt(row)][col.charCodeAt(0) - 'a'.charCodeAt(0)];
 
     if (selectedSquare) {
       if (selectedSquare === position) {
@@ -51,11 +78,32 @@ export default function ChessBoard({ socket, room, currentPlayer }: ChessBoardPr
       }
 
       // Try to make a move
-      socket.emit('make-move', {
-        roomId: room.id,
-        from: selectedSquare,
-        to: position
-      });
+      try {
+        const response = await fetch('/api/socket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'make-move',
+            data: {
+              roomId: room.id,
+              from: selectedSquare,
+              to: position,
+              playerColor: currentPlayer?.color
+            }
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setGameState(result.gameState);
+          onMoveMade(result.gameState, result.currentPlayer);
+        } else {
+          console.error('Move failed:', result.error);
+        }
+      } catch (err) {
+        console.error('Failed to make move:', err);
+      }
 
       setSelectedSquare(null);
       setPossibleMoves([]);
@@ -106,7 +154,7 @@ export default function ChessBoard({ socket, room, currentPlayer }: ChessBoardPr
           <div className="flex-1">
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="grid grid-cols-8 gap-0 w-fit mx-auto border-2 border-gray-800">
-                {room.gameState.board.map((row, rowIndex) =>
+                {gameState.board.map((row, rowIndex) =>
                   row.map((piece, colIndex) => {
                     const position = getPositionString(rowIndex, colIndex);
                     const isSelected = selectedSquare === position;
@@ -176,7 +224,7 @@ export default function ChessBoard({ socket, room, currentPlayer }: ChessBoardPr
                 <div>
                   <p className="text-sm text-gray-600 mb-2">White captured:</p>
                   <div className="flex flex-wrap gap-1">
-                    {room.gameState.capturedPieces.white.map((piece, index) => (
+                    {gameState.capturedPieces.white.map((piece, index) => (
                       <div key={index} className="p-1 bg-gray-100 rounded">
                         {renderPiece(piece)}
                       </div>
@@ -186,7 +234,7 @@ export default function ChessBoard({ socket, room, currentPlayer }: ChessBoardPr
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Black captured:</p>
                   <div className="flex flex-wrap gap-1">
-                    {room.gameState.capturedPieces.black.map((piece, index) => (
+                    {gameState.capturedPieces.black.map((piece, index) => (
                       <div key={index} className="p-1 bg-gray-100 rounded">
                         {renderPiece(piece)}
                       </div>

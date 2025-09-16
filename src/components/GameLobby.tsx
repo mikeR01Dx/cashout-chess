@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Socket } from 'socket.io-client';
+import { useState } from 'react';
 import { Users, Plus, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
+import { GameRoom, Player } from '@/types/game';
 
 interface GameLobbyProps {
-  socket: Socket | null;
+  onRoomCreated: (room: GameRoom, player: Player) => void;
+  onRoomJoined: (room: GameRoom, player: Player) => void;
 }
 
-export default function GameLobby({ socket }: GameLobbyProps) {
+export default function GameLobby({ onRoomCreated, onRoomJoined }: GameLobbyProps) {
   const [playerName, setPlayerName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -16,65 +17,71 @@ export default function GameLobby({ socket }: GameLobbyProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleError = (data: { message: string }) => {
-      setError(data.message);
-      setIsCreating(false);
-      setIsJoining(false);
-    };
-
-    const handleRoomCreated = () => {
-      setSuccess('Room created successfully!');
-      setError('');
-    };
-
-    const handleRoomJoined = () => {
-      setSuccess('Joined room successfully!');
-      setError('');
-    };
-
-    socket.on('error', handleError);
-    socket.on('room-created', handleRoomCreated);
-    socket.on('room-joined', handleRoomJoined);
-
-    return () => {
-      socket.off('error', handleError);
-      socket.off('room-created', handleRoomCreated);
-      socket.off('room-joined', handleRoomJoined);
-    };
-  }, [socket]);
-
-  const handleCreateRoom = () => {
-    if (!socket || !playerName.trim()) return;
+  const handleCreateRoom = async () => {
+    if (!playerName.trim()) return;
     
     setError('');
     setSuccess('');
     setIsCreating(true);
-    socket.emit('create-room', { playerName: playerName.trim() });
     
-    // Reset loading state after 5 seconds if no response
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/socket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-room',
+          data: { playerName: playerName.trim() }
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSuccess('Room created successfully!');
+        onRoomCreated(result.room, result.room.players[0]);
+      } else {
+        setError(result.error || 'Failed to create room');
+      }
+    } catch (err) {
+      setError('Failed to connect to server');
+    } finally {
       setIsCreating(false);
-    }, 5000);
+    }
   };
 
-  const handleJoinRoom = () => {
-    if (!socket || !playerName.trim() || !roomId.trim()) return;
+  const handleJoinRoom = async () => {
+    if (!playerName.trim() || !roomId.trim()) return;
     
     setError('');
     setSuccess('');
     setIsJoining(true);
-    socket.emit('join-room', { 
-      roomId: roomId.trim(), 
-      playerName: playerName.trim() 
-    });
     
-    // Reset loading state after 5 seconds if no response
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/socket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'join-room',
+          data: { 
+            roomId: roomId.trim(), 
+            playerName: playerName.trim() 
+          }
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSuccess('Joined room successfully!');
+        onRoomJoined(result.room, result.room.players[result.room.players.length - 1]);
+      } else {
+        setError(result.error || 'Failed to join room');
+      }
+    } catch (err) {
+      setError('Failed to connect to server');
+    } finally {
       setIsJoining(false);
-    }, 5000);
+    }
   };
 
   return (
